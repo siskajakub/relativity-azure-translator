@@ -224,6 +224,20 @@ namespace RelativityAzureTranslator
                 _logger.LogDebug("Azure Translator, Instance Setting: {name}=>{value}", name, instanceSettingsValues[name]);
             }
 
+            // Check Cost1MCharacters Instance Settings is a number
+            try
+            {
+                float.Parse(instanceSettingsValues["Cost1MCharacters"]);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Azure Translator, Instance Settings error: {section}/{name}", "Azure.Translator", "Cost1MCharacters");
+
+                response.Success = false;
+                response.Message = "Instance Settings error";
+                return instanceSettingsValues;
+            }
+
             return instanceSettingsValues;
         }
 
