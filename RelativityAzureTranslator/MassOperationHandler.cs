@@ -135,7 +135,7 @@ namespace RelativityAzureTranslator
                 translationTasks.Add(TranslateDocument(workspaceId, this.BatchIDs[i], instanceSettings["SourceField"], instanceSettings["DestinationField"]));
 
                 // Update progreass bar
-                this.IncrementCount(i + 1);
+                this.IncrementCount(1);
             }
 
             // Update general status
