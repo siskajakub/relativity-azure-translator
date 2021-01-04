@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Relativity.API;
 using Relativity.Kepler.Transport;
@@ -129,6 +130,8 @@ namespace RelativityAzureTranslator
 
             // For each document create translation task
             List<Task<int>> translationTasks = new List<Task<int>>();
+            int runningTasks = 0;
+            int concurrentTasks = 16;
             for (int i = 0; i < this.BatchIDs.Count; i++)
             {
                 // Translate documents in Azure and update Relativity using Object Manager API
@@ -136,6 +139,23 @@ namespace RelativityAzureTranslator
 
                 // Update progreass bar
                 this.IncrementCount(1);
+
+                // Allow only certain number of tasks to run concurently
+                do
+                {
+                    runningTasks = 0;
+                    foreach (Task<int> translationTask in translationTasks)
+                    {
+                        if (!translationTask.IsCompleted)
+                        {
+                            runningTasks++;
+                        }
+                    }
+                    if (runningTasks >= concurrentTasks)
+                    {
+                        Thread.Sleep(100);
+                    }
+                } while (runningTasks >= concurrentTasks);
             }
 
             // Update general status
