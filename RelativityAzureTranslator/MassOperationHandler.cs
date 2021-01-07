@@ -1,7 +1,11 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Newtonsoft.Json;
 using Relativity.API;
 using Relativity.Kepler.Transport;
 using Relativity.Services.Objects;
@@ -34,7 +38,7 @@ namespace RelativityAzureTranslator
             _logger.LogDebug("Azure Translator, current Workspace ID: {workspaceId}", workspaceId.ToString());
 
             // Check if all Instance Settings are in place
-            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SubscriptionKey", "Endpoint", "SourceField", "DestinationField", "Cost1MCharacters" });
+            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint" });
             // Check if there was not error
             if (!response.Success)
             {
@@ -57,7 +61,7 @@ namespace RelativityAzureTranslator
                 _logger.LogDebug("Azure Translator, translation cost: {price}CHF", cost.ToString("0.00"));
                 response.Message = "Translation cost is " + cost.ToString("0.00") + "CHF";
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 _logger.LogError(e, "Azure Translator, translation cost error ({SourceField}, {Cost1MCharacters})", instanceSettings["SourceField"], instanceSettings["Cost1MCharacters"]);
 
@@ -118,7 +122,7 @@ namespace RelativityAzureTranslator
             _logger.LogDebug("Azure Translator, current Workspace ID: {workspaceId}", workspaceId.ToString());
 
             // Check if all Instance Settings are in place
-            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SubscriptionKey", "Endpoint", "SourceField", "DestinationField", "Cost1MCharacters" });
+            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint" });
             // Check if there was not error
             if (!response.Success)
             {
@@ -135,12 +139,12 @@ namespace RelativityAzureTranslator
             for (int i = 0; i < this.BatchIDs.Count; i++)
             {
                 // Translate documents in Azure and update Relativity using Object Manager API
-                translationTasks.Add(TranslateDocument(workspaceId, this.BatchIDs[i], instanceSettings["SourceField"], instanceSettings["DestinationField"]));
+                translationTasks.Add(TranslateDocument(workspaceId, this.BatchIDs[i], instanceSettings["SourceField"], instanceSettings["DestinationField"], instanceSettings["AzureServiceRegion"], instanceSettings["AzureSubscriptionKey"], instanceSettings["AzureTranslatorEndpoint"]));
 
                 // Update progreass bar
                 this.IncrementCount(1);
 
-                // Allow only certain number of tasks to run concurently
+                // Allow only certain number of tasks to run concurrently
                 do
                 {
                     runningTasks = 0;
@@ -225,14 +229,14 @@ namespace RelativityAzureTranslator
                     instanceSettingsValues.Add(name, this.Helper.GetInstanceSettingBundle().GetString("Azure.Translator", name));
                     if (instanceSettingsValues[name].Length <= 0)
                     {
-                        _logger.LogError("Azure Translator, Instance Settings error: {section}/{name}", "Azure.Translator", name);
+                        _logger.LogError("Azure Translator, Instance Settings empty error: {section}/{name}", "Azure.Translator", name);
 
                         response.Success = false;
                         response.Message = "Instance Settings error";
                         return instanceSettingsValues;
                     }
                 }
-                catch (System.Exception e)
+                catch (Exception e)
                 {
                     _logger.LogError(e, "Azure Translator, Instance Settings error: {section}/{name}", "Azure.Translator", name);
 
@@ -264,7 +268,7 @@ namespace RelativityAzureTranslator
         /*
          * Custom method to translate document using Azure Translator
          */
-        private async Task<int> TranslateDocument(int workspaceId, int documentArtifactId, string sourceField, string destinationField)
+        private async Task<int> TranslateDocument(int workspaceId, int documentArtifactId, string sourceField, string destinationField, string azureServiceRegion, string azureSubscriptionKey, string azureTranslatorEndpoint)
         {
             // Get logger
             Relativity.API.IAPILog _logger = this.Helper.GetLoggerFactory().GetLogger().ForContext<MassOperationHandler>();
@@ -273,7 +277,7 @@ namespace RelativityAzureTranslator
             IObjectManager objectManager = this.Helper.GetServicesManager().CreateProxy<IObjectManager>(ExecutionIdentity.CurrentUser);
 
             // Get document text
-            Stream stream;
+            Stream streamToTranslate;
             try
             {
                 // Construct objects for document retriaval
@@ -286,34 +290,30 @@ namespace RelativityAzureTranslator
                     Name = sourceField
                 };
                 IKeplerStream keplerStream = await objectManager.StreamLongTextAsync(workspaceId, relativityObject, relativityField);
-                stream = await keplerStream.GetStreamAsync();
+                streamToTranslate = await keplerStream.GetStreamAsync();
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 _logger.LogError(e, "Azure Translator, document for translation retrieval error");
 
                 return documentArtifactId;
             }
 
-            // Copy stream to new stream as old does not support seeking
-            MemoryStream memoryStream = new MemoryStream();
-            stream.CopyTo(memoryStream);
-            stream.Dispose();
+            // Copy stream to text as that is used for further on
+            string textToTranslate = new StreamReader(streamToTranslate).ReadToEnd();
+            streamToTranslate.Dispose();
 
             // Log original document
-            _logger.LogDebug("Azure Translator, original document (ArtifactID: {id}, length: {length})", documentArtifactId, memoryStream.Length);
+            _logger.LogDebug("Azure Translator, original document (ArtifactID: {id}, length: {length})", documentArtifactId, textToTranslate.Length);
 
             // TODO: implement actual translation call
 
             // Log translated document
-            _logger.LogDebug("Azure Translator, translated document (ArtifactID: {id}, length: {length})", documentArtifactId, memoryStream.Length);
+            _logger.LogDebug("Azure Translator, translated document (ArtifactID: {id}, length: {length})", documentArtifactId, textToTranslate.Length);
 
             // Update document translated text
             try
             {
-                // reset MemoryStream position
-                memoryStream.Position = 0;
-
                 // Construct objects for document update
                 RelativityObjectRef relativityObject = new RelativityObjectRef
                 {
@@ -328,10 +328,10 @@ namespace RelativityAzureTranslator
                     Object = relativityObject,
                     Field = relativityField
                 };
-                KeplerStream keplerStream = new KeplerStream(memoryStream);
+                KeplerStream keplerStream = new KeplerStream(streamToTranslate);
                 await objectManager.UpdateLongTextFromStreamAsync(workspaceId, updateRequest, keplerStream);
             }
-            catch (System.Exception e)
+            catch (Exception e)
             {
                 _logger.LogError(e, "Azure Translator, document for translation update error");
 
