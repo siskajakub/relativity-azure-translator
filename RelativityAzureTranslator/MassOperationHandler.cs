@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
+using System.Net;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,11 +13,16 @@ using Relativity.API;
 using Relativity.Kepler.Transport;
 using Relativity.Services.Objects;
 using Relativity.Services.Objects.DataContracts;
+using Translator;
 
 namespace RelativityAzureTranslator
 {
-    [kCura.EventHandler.CustomAttributes.Description("Relativity Azure Translator")]
-    [System.Runtime.InteropServices.Guid("7db432d7-09c1-44c9-8330-8a1f3ef28849")]
+    [Description("Relativity Azure Translator")]
+    [Guid("7db432d7-09c1-44c9-8330-8a1f3ef28849")]
+
+    /*
+     * Relativity Mass Event Handler Class
+     */
     public class MassOperationHandler : kCura.MassOperationHandlers.MassOperationHandler
     {
         /*
@@ -166,7 +174,7 @@ namespace RelativityAzureTranslator
             this.ChangeStatus("Waiting to finish the document translation");
 
             // Wait for all translations to finish
-            _logger.LogDebug("Azure Translator, waiting for all documents finish translating ({n} document(s))", this.BatchIDs.Count);
+            _logger.LogDebug("Azure Translator, waiting for all documents finish translating ({n} document(s))", this.BatchIDs.Count.ToString());
             Task.WaitAll(translationTasks.ToArray());
 
             // Update general status
@@ -177,7 +185,7 @@ namespace RelativityAzureTranslator
             for (int i = 0; i < translationTasks.Count; i++)
             {
                 // If translation was not done add to the error List
-                _logger.LogDebug("Azure Translator, translation task result: {result} (task: {task})", translationTasks[i].Result, translationTasks[i].Id);
+                _logger.LogDebug("Azure Translator, translation task result: {result} (task: {task})", translationTasks[i].Result.ToString(), translationTasks[i].Id.ToString());
                 if (translationTasks[i].Result != 0)
                 {
                     translationErrors.Add(translationTasks[i].Result.ToString());
@@ -270,6 +278,57 @@ namespace RelativityAzureTranslator
          */
         private async Task<int> TranslateDocument(int workspaceId, int documentArtifactId, string sourceField, string destinationField, string azureServiceRegion, string azureSubscriptionKey, string azureTranslatorEndpoint)
         {
+            /*
+             * Custom local function to split string into chunks of defined size with delimiter priority
+             */
+            List<string> SplitMulti(string str, char[] delimiters, int minChunkThreshold, int maxChunkThreshold, int smallChunkThreshold)
+            {
+                List<string> chunks = new List<string>() { str };
+                List<string> subChunks;
+                foreach (char delimiter in delimiters)
+                {
+                    for (int i = 0; i < chunks.Count; i++)
+                    {
+                        // Check if chunks are all below threshold otherwise split by space
+                        if (chunks[i].Length > maxChunkThreshold)
+                        {
+                            subChunks = SplitSized(chunks[i], delimiter, minChunkThreshold, maxChunkThreshold, smallChunkThreshold);
+                            chunks.RemoveAt(i);
+                            chunks.InsertRange(i, subChunks);
+                        }
+                    }
+                }
+
+                return chunks;
+            }
+
+            /*
+             * Custom local function to split string into chunks of defined size
+             */
+            List<string> SplitSized(string str, char delimiter, int minChunkThreshold, int maxChunkThreshold, int smallChunkThreshold)
+            {
+                string[] split = str.Split(delimiter);
+                List<string> chunks = new List<string>();
+
+                string hlp = split[0];
+                for (int i = 1; i < split.Length; i++)
+                {
+                    // Rearange split text into bigger chunks
+                    if (((hlp.Length + split[i].Length) < minChunkThreshold || split[i].Length < smallChunkThreshold) && ((hlp.Length + split[i].Length) < maxChunkThreshold))
+                    {
+                        hlp = hlp + delimiter + split[i];
+                    }
+                    else
+                    {
+                        chunks.Add(hlp + delimiter);
+                        hlp = split[i];
+                    }
+                }
+                chunks.Add(hlp);
+
+                return chunks;
+            }
+            
             // Get logger
             Relativity.API.IAPILog _logger = this.Helper.GetLoggerFactory().GetLogger().ForContext<MassOperationHandler>();
 
@@ -294,8 +353,7 @@ namespace RelativityAzureTranslator
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Azure Translator, document for translation retrieval error");
-
+                _logger.LogError(e, "Azure Translator, document for translation retrieval error (ArtifactID: {id})", documentArtifactId.ToString());
                 return documentArtifactId;
             }
 
@@ -304,12 +362,70 @@ namespace RelativityAzureTranslator
             streamToTranslate.Dispose();
 
             // Log original document
-            _logger.LogDebug("Azure Translator, original document (ArtifactID: {id}, length: {length})", documentArtifactId, textToTranslate.Length);
+            _logger.LogDebug("Azure Translator, original document (ArtifactID: {id}, length: {length})", documentArtifactId.ToString(), textToTranslate.Length.ToString());
 
-            // TODO: implement actual translation call
+            // Split document text to chunks as Azure Translator request is limited by 10K characters
+            List<string> partsToTranslate = SplitMulti(textToTranslate, new char[] { '.', ' '}, 9000, 9900, 20);
+            _logger.LogDebug("Azure Translator, document split into {n} parts (ArtifactID: {id})", partsToTranslate.Count.ToString(), documentArtifactId.ToString());
+
+            // Do Azure Translator call for every text part
+            List<string> partsTranslated = new List<string>();
+            for (int i = 0; i < partsToTranslate.Count; i++)
+            {
+                // Build translation request
+                HttpRequestMessage request = new HttpRequestMessage();
+                request.Method = HttpMethod.Post;
+                request.RequestUri = new Uri(azureTranslatorEndpoint + "translate?api-version=3.0&to=en&includeAlignment=true"); // https://docs.microsoft.com/azure/cognitive-services/translator/reference/v3-0-translate
+                request.Content = new StringContent(JsonConvert.SerializeObject(new object[] { new { Text = partsToTranslate[i] } }), Encoding.UTF8, "application/json");
+                request.Headers.Add("Ocp-Apim-Subscription-Key", azureSubscriptionKey);
+                request.Headers.Add("Ocp-Apim-Subscription-Region", azureServiceRegion);
+
+                // Send the request
+                HttpClient client = new HttpClient();
+                HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false);
+
+                // Check the response
+                if (response.StatusCode != HttpStatusCode.OK)
+                {
+                    _logger.LogError("Azure Translator, HTTP reposnse error (ArtifactID: {id}, status: {status})", documentArtifactId.ToString(), response.StatusCode.ToString());
+                    return documentArtifactId;
+                }
+
+                // Read the response
+                string partTranslated = await response.Content.ReadAsStringAsync();
+                _logger.LogDebug("Azure Translator, translation result JSON check (ArtifactID: {id}, length: {length})", documentArtifactId.ToString(), partTranslated.Length.ToString());
+
+                // Parse JSON
+                TranslationResult[] translationResults = JsonConvert.DeserializeObject<TranslationResult[]>(partTranslated);
+
+                // Check the translation result
+                if (translationResults.Length > 1 || translationResults[0].Translations.Length > 1)
+                {
+                    _logger.LogError("Azure Translator, unexpected document translation results (ArtifactID: {id})", documentArtifactId.ToString());
+                    return documentArtifactId;
+                }
+                if (translationResults.Length == 0 || translationResults[0].Translations.Length == 0)
+                {
+                    _logger.LogError("Azure Translator, empty document translation results (ArtifactID: {id})", documentArtifactId.ToString());
+                    return documentArtifactId;
+                }
+
+                // Log the translation result
+                _logger.LogDebug("Azure Translator, translation check (ArtifactID: {id}, part: {part}, detected language: {language}, confidence score: {confidence}, length: {length})", documentArtifactId.ToString(), i.ToString(), translationResults[0].DetectedLanguage.Language, translationResults[0].DetectedLanguage.Score.ToString("0.00"), translationResults[0].Translations[0].Text.Length.ToString());
+                // Get the translation result
+                partsTranslated.Add(translationResults[0].Translations[0].Text);
+            }
+
+            // Construct translated text
+            string textTranslated = string.Join(string.Empty, partsTranslated);
+            Stream streamTranslated = new MemoryStream();
+            StreamWriter streamWriter = new StreamWriter(streamTranslated);
+            streamWriter.Write(textTranslated);
+            streamWriter.Flush();
+            streamTranslated.Position = 0;
 
             // Log translated document
-            _logger.LogDebug("Azure Translator, translated document (ArtifactID: {id}, length: {length})", documentArtifactId, textToTranslate.Length);
+            _logger.LogDebug("Azure Translator, translated document (ArtifactID: {id}, length: {length})", documentArtifactId.ToString(), textTranslated.Length.ToString());
 
             // Update document translated text
             try
@@ -328,16 +444,15 @@ namespace RelativityAzureTranslator
                     Object = relativityObject,
                     Field = relativityField
                 };
-                KeplerStream keplerStream = new KeplerStream(streamToTranslate);
+                KeplerStream keplerStream = new KeplerStream(streamTranslated);
                 await objectManager.UpdateLongTextFromStreamAsync(workspaceId, updateRequest, keplerStream);
             }
             catch (Exception e)
             {
-                _logger.LogError(e, "Azure Translator, document for translation update error");
-
+                _logger.LogError(e, "Azure Translator, document for translation update error (ArtifactID: {id})", documentArtifactId.ToString());
                 return documentArtifactId;
             }
-
+            
             // Return 0 as all went without error
             return 0;
         }
