@@ -6,9 +6,9 @@ Relativity mass event handled for text translation using Azure Translator.
 Create required Relativity Instance Settings entries:  
 Name | Section | Value Type | Value (example) | Description
 ---- | ------- | ---------- | --------------- | -----------
-AzureServiceRegion | Azure.Translator | Text | switzerlandnorth | Azure Translator Service Region.
+AzureServiceRegion | Azure.Translator | Text | xxxxxxxxx | Azure Translator Service Region.
 AzureSubscriptionKey | Azure.Translator | Text | xxxxxxxxx | Azure Translator Subscription Key.
-AzureTranslatorEndpoint | Azure.Translator | Text | https://api.cognitive.microsofttranslator.com/ | Azure Translator Endpoint.
+AzureTranslatorEndpoint | Azure.Translator | Text | xxxxxxxxx | Azure Translator Endpoint.
 Cost1MCharacters | Azure.Translator | Text | 10 | Azure Translator cost per 1 million characters. Can be decimal number.
 DestinationField | Azure.Translator | Text | Extracted Text Translated | Document Field where to record translated text.
 SourceField | Azure.Translator | Text | Extracted Text | Document Field with text to translate.
