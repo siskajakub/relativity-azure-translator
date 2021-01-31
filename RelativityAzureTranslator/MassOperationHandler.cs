@@ -21,7 +21,7 @@ namespace RelativityAzureTranslator
     [Guid("7db432d7-09c1-44c9-8330-8a1f3ef28849")]
 
     /*
-     * Relativity Mass Event Handler Class
+     * Relativity Mass EventHandler Class
      */
     public class MassOperationHandler : kCura.MassOperationHandlers.MassOperationHandler
     {
@@ -67,7 +67,7 @@ namespace RelativityAzureTranslator
                 // Calculate translation cost
                 float cost = (count / 1000000f) * float.Parse(instanceSettings["Cost1MCharacters"]);
                 _logger.LogDebug("Azure Translator, translation cost: {price}CHF", cost.ToString("0.00"));
-                response.Message = "Translation cost is " + cost.ToString("0.00") + "CHF";
+                response.Message = string.Format("Translation cost is {0}CHF", cost.ToString("0.00"));
             }
             catch (Exception e)
             {
