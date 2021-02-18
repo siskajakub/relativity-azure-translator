@@ -13,7 +13,6 @@ using Relativity.API;
 using Relativity.Kepler.Transport;
 using Relativity.Services.Objects;
 using Relativity.Services.Objects.DataContracts;
-using Translator;
 
 namespace RelativityAzureTranslator
 {

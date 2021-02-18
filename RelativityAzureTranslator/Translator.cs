@@ -1,4 +1,4 @@
-﻿namespace Translator
+﻿namespace RelativityAzureTranslator
 {
     /*
      * Classes that represent the JSON returned by Azure Translator
