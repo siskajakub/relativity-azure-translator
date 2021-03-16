@@ -65,8 +65,8 @@ namespace RelativityAzureTranslator
 
                 // Calculate translation cost
                 float cost = (count / 1000000f) * float.Parse(instanceSettings["Cost1MCharacters"]);
-                _logger.LogDebug("Azure Translator, translation cost: {price}CHF", cost.ToString("0.00"));
-                response.Message = string.Format("Translation cost is {0}CHF", cost.ToString("0.00"));
+                _logger.LogDebug("Azure Translator, translation cost: {price}CHF, ({chars} chars)", cost.ToString("0.00"), count.ToString());
+                response.Message = string.Format("Translation cost is {0}CHF, ({1} chars)", cost.ToString("0.00"), count.ToString());
             }
             catch (Exception e)
             {
