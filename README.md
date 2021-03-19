@@ -34,7 +34,8 @@ For desired workspaces add mass event handler to Document Object:
 Translation language can be set only on instance level with Relativity Instance Settings:
 * TranslateFrom
 * TranslateTo
-For detaild on language options please refer to official [Azure documentation](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support).
+
+For details on language options, please refer to official [Azure documentation](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support).
 
 # Notes
 Relativity Azure Translator mass event handled was developed and tested in Relativity 10.3.  
