@@ -12,6 +12,8 @@ AzureTranslatorEndpoint | Azure.Translator | Text | xxxxxxxxx | Azure Translator
 Cost1MCharacters | Azure.Translator | Text | 10 | Azure Translator cost per 1 million characters. Can be decimal number.
 DestinationField | Azure.Translator | Text | Extracted Text Translated | Document Field where to record translated text.
 SourceField | Azure.Translator | Text | Extracted Text | Document Field with text to translate.
+TranslateFrom | Azure.Translator | Text | auto | Language to translate from ("auto" for automatic detection).
+TranslateTo | Azure.Translator | Text | en | Language to translate to.
 
 ## 2) Compile DLL
 Download the source code and compile the code using Microsoft Visual Studio 2019.  
@@ -27,6 +29,12 @@ For desired workspaces add mass event handler to Document Object:
   * Name: Azure.Translator
   * Pop-up Directs To: Mass Operation Handler
   * Select Mass Operation Handler: RelativityAzureTranslator.dll
+
+# Translation Language
+Translation language can be set only on instance level with Relativity Instance Settings:
+* TranslateFrom
+* TranslateTo
+For detaild on language options please refer to official [Azure documentation](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support).
 
 # Notes
 Relativity Azure Translator mass event handled was developed and tested in Relativity 10.3.  

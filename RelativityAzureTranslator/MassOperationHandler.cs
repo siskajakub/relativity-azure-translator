@@ -45,7 +45,7 @@ namespace RelativityAzureTranslator
             _logger.LogDebug("Azure Translator, current Workspace ID: {workspaceId}", workspaceId.ToString());
 
             // Check if all Instance Settings are in place
-            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint" });
+            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint", "TranslateFrom", "TranslateTo" });
             // Check if there was not error
             if (!response.Success)
             {
@@ -129,7 +129,7 @@ namespace RelativityAzureTranslator
             _logger.LogDebug("Azure Translator, current Workspace ID: {workspaceId}", workspaceId.ToString());
 
             // Check if all Instance Settings are in place
-            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint" });
+            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint", "TranslateFrom", "TranslateTo" });
             // Check if there was not error
             if (!response.Success)
             {
@@ -146,7 +146,7 @@ namespace RelativityAzureTranslator
             for (int i = 0; i < this.BatchIDs.Count; i++)
             {
                 // Translate documents in Azure and update Relativity using Object Manager API
-                translationTasks.Add(TranslateDocument(workspaceId, this.BatchIDs[i], instanceSettings["SourceField"], instanceSettings["DestinationField"], instanceSettings["AzureServiceRegion"], instanceSettings["AzureSubscriptionKey"], instanceSettings["AzureTranslatorEndpoint"]));
+                translationTasks.Add(TranslateDocument(workspaceId, this.BatchIDs[i], instanceSettings["SourceField"], instanceSettings["DestinationField"], instanceSettings["AzureServiceRegion"], instanceSettings["AzureSubscriptionKey"], instanceSettings["AzureTranslatorEndpoint"], instanceSettings["TranslateFrom"], instanceSettings["TranslateTo"]));
 
                 // Update progreass bar
                 this.IncrementCount(1);
@@ -275,7 +275,7 @@ namespace RelativityAzureTranslator
         /*
          * Custom method to translate document using Azure Translator
          */
-        private async Task<int> TranslateDocument(int workspaceId, int documentArtifactId, string sourceField, string destinationField, string azureServiceRegion, string azureSubscriptionKey, string azureTranslatorEndpoint)
+        private async Task<int> TranslateDocument(int workspaceId, int documentArtifactId, string sourceField, string destinationField, string azureServiceRegion, string azureSubscriptionKey, string azureTranslatorEndpoint, string translateFrom, string translateTo)
         {
             /*
              * Custom local function to split string into chunks of defined size with delimiter priority
@@ -367,6 +367,10 @@ namespace RelativityAzureTranslator
             List<string> partsToTranslate = SplitMulti(textToTranslate, new char[] { '.', ' '}, 9000, 9900, 20);
             _logger.LogDebug("Azure Translator, document split into {n} parts (ArtifactID: {id})", partsToTranslate.Count.ToString(), documentArtifactId.ToString());
 
+            // URL encode request paramenters
+            translateFrom = WebUtility.HtmlEncode(translateFrom.ToLower());
+            translateTo = WebUtility.HtmlEncode(translateTo.ToLower());
+
             // Do Azure Translator call for every text part
             List<string> partsTranslated = new List<string>();
             for (int i = 0; i < partsToTranslate.Count; i++)
@@ -374,7 +378,7 @@ namespace RelativityAzureTranslator
                 // Build translation request
                 HttpRequestMessage request = new HttpRequestMessage();
                 request.Method = HttpMethod.Post;
-                request.RequestUri = new Uri(azureTranslatorEndpoint + "translate?api-version=3.0&to=en&includeAlignment=true"); // https://docs.microsoft.com/azure/cognitive-services/translator/reference/v3-0-translate
+                request.RequestUri = new Uri(azureTranslatorEndpoint + "translate?api-version=3.0&to=" + translateTo + (translateFrom == "auto" ? "" : "&from=" + translateFrom) +  "&includeAlignment=true"); // https://docs.microsoft.com/azure/cognitive-services/translator/reference/v3-0-translate
                 request.Content = new StringContent(JsonConvert.SerializeObject(new object[] { new { Text = partsToTranslate[i] } }), Encoding.UTF8, "application/json");
                 request.Headers.Add("Ocp-Apim-Subscription-Key", azureSubscriptionKey);
                 request.Headers.Add("Ocp-Apim-Subscription-Region", azureServiceRegion);
@@ -410,7 +414,7 @@ namespace RelativityAzureTranslator
                 }
 
                 // Log the translation result
-                _logger.LogDebug("Azure Translator, translation check (ArtifactID: {id}, part: {part}, detected language: {language}, confidence score: {confidence}, length: {length})", documentArtifactId.ToString(), i.ToString(), translationResults[0].DetectedLanguage.Language, translationResults[0].DetectedLanguage.Score.ToString("0.00"), translationResults[0].Translations[0].Text.Length.ToString());
+                _logger.LogDebug("Azure Translator, translation check (ArtifactID: {id}, part: {part}, length: {length})", documentArtifactId.ToString(), i.ToString(), translationResults[0].Translations[0].Text.Length.ToString());
                 // Get the translation result
                 partsTranslated.Add(translationResults[0].Translations[0].Text);
             }
