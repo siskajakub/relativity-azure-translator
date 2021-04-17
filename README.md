@@ -10,8 +10,9 @@ AzureServiceRegion | Azure.Translator | Text | xxxxxxxxx | Azure Translator Serv
 AzureSubscriptionKey | Azure.Translator | Text | xxxxxxxxx | Azure Translator Subscription Key.
 AzureTranslatorEndpoint | Azure.Translator | Text | xxxxxxxxx | Azure Translator Endpoint.
 Cost1MCharacters | Azure.Translator | Text | 10 | Azure Translator cost per 1 million characters. Can be decimal number.
-DestinationField | Azure.Translator | Text | Extracted Text Translated | Document Field where to record translated text.
-SourceField | Azure.Translator | Text | Extracted Text | Document Field with text to translate.
+DestinationField | Azure.Translator | Text | Extracted Text Translated | Document Field where to record the translated text.
+LogField | Azure.Translator | Text | Extracted Text | Document Field to store the translation log.
+SourceField | Azure.Translator | Text | Extracted Text | Document Field with the text to translate.
 TranslateFrom | Azure.Translator | Text | auto | Language to translate from ("auto" for automatic detection).
 TranslateTo | Azure.Translator | Text | en | Language to translate to.
 
@@ -34,6 +35,18 @@ For desired workspaces add mass event handler to Document Object:
 Translation language can be set only on instance level with Relativity Instance Settings:
 * TranslateFrom
 * TranslateTo
+
+# Log
+Event handler now generates translation log to fiels specified in the Relativity Instance Settings.  
+Log entry is added after each translation. There can be multiple log entries for one Document.  
+Log entry has following fields:
+* Translation engine
+* User email address
+* Timestamp
+* Language translated from ("auto" for automatic detection)
+* Language translated to
+* Character count of the source text
+* Character count of the translated text
 
 For details on language options, please refer to official [Azure documentation](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support).
 

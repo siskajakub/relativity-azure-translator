@@ -45,7 +45,7 @@ namespace RelativityAzureTranslator
             _logger.LogDebug("Azure Translator, current Workspace ID: {workspaceId}", workspaceId.ToString());
 
             // Check if all Instance Settings are in place
-            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint", "TranslateFrom", "TranslateTo" });
+            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "LogField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint", "TranslateFrom", "TranslateTo" });
             // Check if there was not error
             if (!response.Success)
             {
@@ -129,7 +129,7 @@ namespace RelativityAzureTranslator
             _logger.LogDebug("Azure Translator, current Workspace ID: {workspaceId}", workspaceId.ToString());
 
             // Check if all Instance Settings are in place
-            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint", "TranslateFrom", "TranslateTo" });
+            IDictionary<string, string> instanceSettings = this.GetInstanceSettings(ref response, new string[] { "SourceField", "DestinationField", "LogField", "Cost1MCharacters", "AzureServiceRegion", "AzureSubscriptionKey", "AzureTranslatorEndpoint", "TranslateFrom", "TranslateTo" });
             // Check if there was not error
             if (!response.Success)
             {
@@ -146,7 +146,7 @@ namespace RelativityAzureTranslator
             for (int i = 0; i < this.BatchIDs.Count; i++)
             {
                 // Translate documents in Azure and update Relativity using Object Manager API
-                translationTasks.Add(TranslateDocument(workspaceId, this.BatchIDs[i], instanceSettings["SourceField"], instanceSettings["DestinationField"], instanceSettings["AzureServiceRegion"], instanceSettings["AzureSubscriptionKey"], instanceSettings["AzureTranslatorEndpoint"], instanceSettings["TranslateFrom"], instanceSettings["TranslateTo"]));
+                translationTasks.Add(TranslateDocument(workspaceId, this.BatchIDs[i], instanceSettings["SourceField"], instanceSettings["DestinationField"], instanceSettings["LogField"], instanceSettings["AzureServiceRegion"], instanceSettings["AzureSubscriptionKey"], instanceSettings["AzureTranslatorEndpoint"], instanceSettings["TranslateFrom"], instanceSettings["TranslateTo"]));
 
                 // Update progreass bar
                 this.IncrementCount(1);
@@ -275,7 +275,7 @@ namespace RelativityAzureTranslator
         /*
          * Custom method to translate document using Azure Translator
          */
-        private async Task<int> TranslateDocument(int workspaceId, int documentArtifactId, string sourceField, string destinationField, string azureServiceRegion, string azureSubscriptionKey, string azureTranslatorEndpoint, string translateFrom, string translateTo)
+        private async Task<int> TranslateDocument(int workspaceId, int documentArtifactId, string sourceField, string destinationField, string logField, string azureServiceRegion, string azureSubscriptionKey, string azureTranslatorEndpoint, string translateFrom, string translateTo)
         {
             /*
              * Custom local function to split string into chunks of defined size with delimiter priority
@@ -338,7 +338,7 @@ namespace RelativityAzureTranslator
             Stream streamToTranslate;
             try
             {
-                // Construct objects for document retriaval
+                // Construct objects and retreive document content
                 RelativityObjectRef relativityObject = new RelativityObjectRef
                 {
                     ArtifactID = documentArtifactId
@@ -358,7 +358,6 @@ namespace RelativityAzureTranslator
 
             // Copy stream to text as that is used for further on
             string textToTranslate = new StreamReader(streamToTranslate).ReadToEnd();
-            streamToTranslate.Dispose();
 
             // Log original document
             _logger.LogDebug("Azure Translator, original document (ArtifactID: {id}, length: {length})", documentArtifactId.ToString(), textToTranslate.Length.ToString());
@@ -397,6 +396,7 @@ namespace RelativityAzureTranslator
                 // Read the response
                 string partTranslated = await response.Content.ReadAsStringAsync();
                 _logger.LogDebug("Azure Translator, translation result JSON check (ArtifactID: {id}, length: {length})", documentArtifactId.ToString(), partTranslated.Length.ToString());
+                client.Dispose();
 
                 // Parse JSON
                 TranslationResult[] translationResults = JsonConvert.DeserializeObject<TranslationResult[]>(partTranslated);
@@ -433,7 +433,7 @@ namespace RelativityAzureTranslator
             // Update document translated text
             try
             {
-                // Construct objects for document update
+                // Construct objects and do document update
                 RelativityObjectRef relativityObject = new RelativityObjectRef
                 {
                     ArtifactID = documentArtifactId
@@ -453,6 +453,45 @@ namespace RelativityAzureTranslator
             catch (Exception e)
             {
                 _logger.LogError(e, "Azure Translator, document for translation update error (ArtifactID: {id})", documentArtifactId.ToString());
+                return documentArtifactId;
+            }
+            
+            // Update document translation log
+            try
+            {
+                Stream streamCurrentLog;
+                // Construct objects and get current translation log
+                RelativityObjectRef relativityObject = new RelativityObjectRef
+                {
+                    ArtifactID = documentArtifactId
+                };
+                FieldRef relativityField = new FieldRef
+                {
+                    Name = logField
+                };
+                IKeplerStream keplerStream = await objectManager.StreamLongTextAsync(workspaceId, relativityObject, relativityField);
+                streamCurrentLog = await keplerStream.GetStreamAsync();
+
+                // Add new translation log
+                Stream streamUpdatedLog = new MemoryStream();
+                StreamWriter streamLogWriter = new StreamWriter(streamUpdatedLog);
+                streamLogWriter.Write(new StreamReader(streamCurrentLog).ReadToEnd());
+                streamLogWriter.Write("Azure Translator;" + this.Helper.GetAuthenticationManager().UserInfo.EmailAddress + ";" + DateTime.Now.ToString("MM/dd/yyyy HH:mm:ss") + ";" + translateFrom + ";" + translateTo + ";" + textToTranslate.Length.ToString() + ";" + textTranslated.Length.ToString() + "\n");
+                streamLogWriter.Flush();
+                streamUpdatedLog.Position = 0;
+
+                // Write updated translation log
+                UpdateLongTextFromStreamRequest updateRequest = new UpdateLongTextFromStreamRequest
+                {
+                    Object = relativityObject,
+                    Field = relativityField
+                };
+                keplerStream = new KeplerStream(streamUpdatedLog);
+                await objectManager.UpdateLongTextFromStreamAsync(workspaceId, updateRequest, keplerStream);
+            }
+            catch (Exception e)
+            {
+                _logger.LogError(e, "Azure Translator, translation log update error (ArtifactID: {id})", documentArtifactId.ToString());
                 return documentArtifactId;
             }
             
