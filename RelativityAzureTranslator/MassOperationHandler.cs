@@ -16,7 +16,7 @@ using Relativity.Services.Objects.DataContracts;
 
 namespace RelativityAzureTranslator
 {
-    [Description("Relativity Azure Translator")]
+    [Description("Azure Translator")]
     [Guid("7db432d7-09c1-44c9-8330-8a1f3ef28849")]
 
     /*

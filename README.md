@@ -36,6 +36,8 @@ Translation language can be set only on instance level with Relativity Instance 
 * TranslateFrom
 * TranslateTo
 
+For details on language options, please refer to official [Azure documentation](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support).
+
 # Log
 Event handler now generates translation log to fiels specified in the Relativity Instance Settings.  
 Log entry is added after each translation. There can be multiple log entries for one Document.  
@@ -48,7 +50,7 @@ Log entry has following fields:
 * Character count of the source text
 * Character count of the translated text
 
-For details on language options, please refer to official [Azure documentation](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support).
+Translation log can be viewed from the Relativity front-end via attached Relativity Script.
 
 # Notes
 Relativity Azure Translator mass event handled was developed and tested in Relativity 10.3.  
