@@ -366,6 +366,9 @@ namespace RelativityAzureTranslator
             List<string> partsToTranslate = SplitMulti(textToTranslate, new char[] { '.', ' '}, 9000, 9900, 20);
             _logger.LogDebug("Azure Translator, document split into {n} parts (ArtifactID: {id})", partsToTranslate.Count.ToString(), documentArtifactId.ToString());
 
+            // Force TLS 1.2 or higher as Azure requires it
+            ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12 & ~(SecurityProtocolType.Ssl3 | SecurityProtocolType.Tls | SecurityProtocolType.Tls11);
+
             // URL encode request paramenters
             translateFrom = WebUtility.HtmlEncode(translateFrom.ToLower());
             translateTo = WebUtility.HtmlEncode(translateTo.ToLower());
