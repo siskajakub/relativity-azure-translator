@@ -18,7 +18,8 @@ TranslateTo | Azure.Translator | Text | en | Language to translate to.
 
 ## 2) Compile DLL
 Download the source code and compile the code using Microsoft Visual Studio 2019.  
-For more details on how to setup your development environemnt, please follow official [Relativity documentation](https://platform.relativity.com/10.3/index.htm#Relativity_Platform/Setting_up_your_development_environment.htm).
+For more details on how to setup your development environemnt, please follow official [Relativity documentation](https://platform.relativity.com/10.3/index.htm#Relativity_Platform/Setting_up_your_development_environment.htm).  
+You can also use precompiled DLL from the repository.
 
 ## 3) Upload DLL
 Upload `RelativityAzureTranslator.dll` to Relativity Resource Files.
@@ -39,7 +40,7 @@ Translation language can be set only on instance level with Relativity Instance 
 For details on language options, please refer to official [Azure documentation](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support).
 
 # Log
-Event handler now generates translation log to fiels specified in the Relativity Instance Settings.  
+Event handler generates translation log to fiels specified by the Relativity Instance Settings.  
 Log entry is added after each translation. There can be multiple log entries for one Document.  
 Log entry has following fields:
 * Translation engine
