@@ -5,10 +5,10 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
 using Relativity.API;
 using Relativity.Kepler.Transport;
 using Relativity.Services.Objects;
@@ -381,7 +381,7 @@ namespace RelativityAzureTranslator
                 HttpRequestMessage request = new HttpRequestMessage();
                 request.Method = HttpMethod.Post;
                 request.RequestUri = new Uri(azureTranslatorEndpoint + "translate?api-version=3.0&to=" + translateTo + (translateFrom == "auto" ? "" : "&from=" + translateFrom) +  "&includeAlignment=true"); // https://docs.microsoft.com/azure/cognitive-services/translator/reference/v3-0-translate
-                request.Content = new StringContent(JsonConvert.SerializeObject(new object[] { new { Text = partsToTranslate[i] } }), Encoding.UTF8, "application/json");
+                request.Content = new StringContent(JsonSerializer.Serialize(new object[] { new { Text = partsToTranslate[i] } }), Encoding.UTF8, "application/json");
                 request.Headers.Add("Ocp-Apim-Subscription-Key", azureSubscriptionKey);
                 request.Headers.Add("Ocp-Apim-Subscription-Region", azureServiceRegion);
 
@@ -402,7 +402,7 @@ namespace RelativityAzureTranslator
                 client.Dispose();
 
                 // Parse JSON
-                TranslationResult[] translationResults = JsonConvert.DeserializeObject<TranslationResult[]>(partTranslated);
+                TranslationResult[] translationResults = JsonSerializer.Deserialize<TranslationResult[]>(partTranslated);
 
                 // Check the translation result
                 if (translationResults.Length > 1 || translationResults[0].Translations.Length > 1)
