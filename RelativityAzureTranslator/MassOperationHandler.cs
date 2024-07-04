@@ -61,7 +61,7 @@ namespace RelativityAzureTranslator
                 // Construct and execute SQL Query to get the characters count
                 string sqlText = "SELECT SUM(LEN(CAST([" + instanceSettings["SourceField"].Replace(" ","") + "] AS NVARCHAR(MAX)))) FROM [EDDSDBO].[Document] AS [Document] JOIN [Resource].[" + this.MassActionTableName + "] AS [MassActionTableName] ON [Document].[ArtifactID] = [MassActionTableName].[ArtifactID]";
                 _logger.LogDebug("Azure Translator, translation cost SQL Parameter and Query: {query}", sqlText);
-                long count = (long)this.Helper.GetDBContext(workspaceId).ExecuteSqlStatementAsScalar(sqlText);
+                long count = this.Helper.GetDBContext(workspaceId).ExecuteSqlStatementAsScalar<long>(sqlText);
 
                 // Calculate translation cost
                 float cost = (count / 1000000f) * float.Parse(instanceSettings["Cost1MCharacters"]);
@@ -390,7 +390,7 @@ namespace RelativityAzureTranslator
                 HttpResponseMessage response = await client.SendAsync(request).ConfigureAwait(false);
 
                 // Check the response
-                if (response.StatusCode != HttpStatusCode.OK)
+                if (!response.IsSuccessStatusCode)
                 {
                     _logger.LogError("Azure Translator, HTTP reposnse error (ArtifactID: {id}, status: {status})", documentArtifactId.ToString(), response.StatusCode.ToString());
                     return documentArtifactId;
@@ -402,8 +402,12 @@ namespace RelativityAzureTranslator
                 client.Dispose();
 
                 // Parse JSON
-                TranslationResult[] translationResults = JsonSerializer.Deserialize<TranslationResult[]>(partTranslated);
-
+                var options = new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                };
+                TranslationResult[] translationResults = JsonSerializer.Deserialize<TranslationResult[]>(partTranslated, options);
+                
                 // Check the translation result
                 if (translationResults.Length > 1 || translationResults[0].Translations.Length > 1)
                 {

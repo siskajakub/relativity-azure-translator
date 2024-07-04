@@ -11,7 +11,8 @@ AzureSubscriptionKey | Azure.Translator | Text | xxxxxxxxx | Azure Translator Su
 AzureTranslatorEndpoint | Azure.Translator | Text | xxxxxxxxx | Azure Translator Endpoint.
 Cost1MCharacters | Azure.Translator | Text | 10 | Azure Translator cost per 1 million characters. Can be decimal number.
 DestinationField | Azure.Translator | Text | Extracted Text Translated | Document Field where to record the translated text.
-LogField | Azure.Translator | Text | Extracted Text | Document Field to store the translation log.
+DestinationFieldRaw | Azure.Translator | Text | Extracted Text Translated Raw | Document Field where to record the raw JSON translated text.
+LogField | Azure.Translator | Text | Azure Translator Log | Document Field to store the translation log.
 SourceField | Azure.Translator | Text | Extracted Text | Document Field with the text to translate.
 TranslateFrom | Azure.Translator | Text | auto | Language to translate from ("auto" for automatic detection).
 TranslateTo | Azure.Translator | Text | en | Language to translate to.
@@ -37,7 +38,7 @@ You may need to install also additional libraries that are required. These libra
 For desired workspaces add mass event handler to Document Object:
 * Browse to Document Object (Workspace->Workspace Admin->Object Type->Document)
 * In Mass Operations section click New and add the handler:
-  * Name: Azure.Translator
+  * Name: Azure Translator
   * Pop-up Directs To: Mass Operation Handler
   * Select Mass Operation Handler: RelativityAzureTranslator.dll
 
@@ -49,7 +50,7 @@ Translation language can be set only on instance level with Relativity Instance 
 For details on language options, please refer to official [Azure documentation](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support).
 
 # Log
-Event handler generates translation log to fiels specified by the Relativity Instance Settings.  
+Mass operation generates translation log to fiels specified by the Relativity Instance Settings.  
 Log entry is added after each translation. There can be multiple log entries for one Document.  
 Log entry has following fields:
 * Translation engine
@@ -63,5 +64,5 @@ Log entry has following fields:
 Translation log can be viewed from the Relativity front-end via attached Relativity Script.
 
 # Notes
-Relativity Azure Translator mass event handled was developed and tested in Relativity 10.3.  
-Relativity Azure Translator mass event handled works correctly only with UTF-8 text.
+Relativity Azure Translator mass operation was developed and tested in Relativity Server 2022 and 2023.  
+Relativity Azure Translator mass operation works correctly only with UTF-8 text.
