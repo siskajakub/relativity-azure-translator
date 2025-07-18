@@ -1,4 +1,4 @@
-# relativity-azure-translator
+# Relativity Azure Translator
 Relativity mass event handled for text translation using Azure Translator.
 
 # Install
@@ -24,7 +24,7 @@ You can also use precompiled DLL from the repository.
 
 ## 3) Upload DLL
 Upload `RelativityAzureTranslator.dll` to Relativity Resource Files.
-You may need to install also additional libraries that are required. These libraries were required for Relativity Server 2022:
+You may need to install also additional libraries that are required:
 * Microsoft.Bcl.AsyncInterfaces.dll
 * System.Buffers.dll
 * System.Memory.dll
@@ -53,7 +53,6 @@ For details on language options, please refer to official [Azure documentation](
 Mass operation generates translation log to fiels specified by the Relativity Instance Settings.  
 Log entry is added after each translation. There can be multiple log entries for one Document.  
 Log entry has following fields:
-* Translation engine
 * User email address
 * Timestamp
 * Language translated from ("auto" for automatic detection)
@@ -64,5 +63,5 @@ Log entry has following fields:
 Translation log can be viewed from the Relativity front-end via attached Relativity Script.
 
 # Notes
-Relativity Azure Translator mass operation was developed and tested in Relativity Server 2022 and 2023.  
+Relativity Azure Translator mass operation was developed and tested for Relativity Server 2022, 2023 and 2024.  
 Relativity Azure Translator mass operation works correctly only with UTF-8 text.
